@@ -11,6 +11,33 @@
 - `音乐`：展示当前播放信息与封面。
 - `状态`：天气快捷入口、设置入口、退出应用。
 
+## 界面预览
+
+### 状态页
+
+![状态页](docs/images/ui-01-status.png)
+
+### 待办页
+
+![待办页](docs/images/ui-02-todo.png)
+
+### 剪贴板页
+
+![剪贴板页](docs/images/ui-03-clipboard.png)
+
+### 音乐页
+
+![音乐页](docs/images/ui-04-music.png)
+
+### 紧凑状态页
+
+![紧凑状态页](docs/images/ui-05-status-compact.png)
+
+### 收起状态（新增）
+
+![收起状态 1](docs/images/ui-06-collapsed-01.png)
+![收起状态 2](docs/images/ui-07-collapsed-02.png)
+
 ## 交互说明
 
 - 鼠标悬停刘海区域会展开面板。
