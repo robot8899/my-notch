@@ -1,23 +1,5 @@
 import SwiftUI
 
-enum NotchTab: String, CaseIterable {
-    case todo = "待办"
-    case clipboard = "剪切板"
-    case fileDrop = "暂存"
-    case music = "音乐"
-    case status = "状态"
-
-    var icon: String {
-        switch self {
-        case .todo: return "checkmark.square"
-        case .status: return "gauge"
-        case .music: return "music.note"
-        case .clipboard: return "doc.on.clipboard"
-        case .fileDrop: return "tray.and.arrow.down"
-        }
-    }
-}
-
 struct NotchContainerView: View {
     var todoStore: TodoStore
     var musicController: MusicController
@@ -161,14 +143,10 @@ struct NotchContainerView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: fileDropStore.isDragSessionActive)
             .onHover { hovering in
                 isHovering = hovering
-                if hovering {
-                    if !isExpanded {
-                        performExpand()
-                    } else {
-                        cancelCollapseTask()
-                        cancelWindowResizeTask()
-                    }
-                } else if isExpanded && !fileDropStore.isDragSessionActive {
+                if hovering && isExpanded {
+                    cancelCollapseTask()
+                    cancelWindowResizeTask()
+                } else if !hovering && isExpanded && !fileDropStore.isDragSessionActive {
                     scheduleCollapse()
                 }
             }
@@ -189,7 +167,7 @@ struct NotchContainerView: View {
             if fileDropStore.isDragSessionActive && !isExpanded {
                 performExpand()
             } else if !fileDropStore.isDragSessionActive {
-                if !fileDropStore.items.isEmpty {
+                if fileDropStore.lastDropZone == .stage && !fileDropStore.items.isEmpty {
                     cancelCollapseTask()
                     cancelWindowResizeTask()
                     onWindowFrameUpdate(expandedWindowSize)
@@ -296,58 +274,49 @@ struct NotchContainerView: View {
             .frame(width: compactWingExtra, alignment: .center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            performExpand()
+        }
     }
 
     // MARK: - Drag Hover Overlay
 
     private var dragHoverOverlay: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "tray.and.arrow.down.fill")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.blue.opacity(0.9))
-            Text("释放以暂存")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.blue.opacity(0.9))
+        HStack(spacing: 0) {
+            // 左侧：暂存
+            VStack(spacing: 4) {
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .font(.system(size: 20, weight: .medium))
+                Text("暂存")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(fileDropStore.activeDropZone == .stage
+                ? .blue.opacity(0.9) : .white.opacity(0.3))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // 分隔线
+            Rectangle()
+                .fill(.white.opacity(0.15))
+                .frame(width: 1)
+                .padding(.vertical, 12)
+
+            // 右侧：投送
+            VStack(spacing: 4) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 20, weight: .medium))
+                Text("投送")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(fileDropStore.activeDropZone == .airdrop
+                ? .blue.opacity(0.9) : .white.opacity(0.3))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, notchHeight)
+        .animation(.easeInOut(duration: 0.15), value: fileDropStore.activeDropZone)
     }
 
     // MARK: - Expanded
-
-    private var fileDropContent: some View {
-        VStack(spacing: 0) {
-            if fileDropStore.items.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white.opacity(0.25))
-                    Text("拖拽文件到刘海区域即可暂存")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.4))
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                HStack {
-                    Spacer()
-                    Button("清空") {
-                        fileDropStore.clearAll()
-                    }
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .buttonStyle(.plain)
-                }
-                .padding(.bottom, 6)
-
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(fileDropStore.items) { item in
-                            FileDropRowView(item: item, store: fileDropStore)
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     private var expandedContent: some View {
         VStack(spacing: 0) {
@@ -362,7 +331,7 @@ struct NotchContainerView: View {
                 case .clipboard:
                     ClipboardView(monitor: clipboardMonitor)
                 case .fileDrop:
-                    fileDropContent
+                    FileDropContentView(store: fileDropStore)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -383,228 +352,6 @@ struct NotchContainerView: View {
                 }
             }
             .padding(.top, 6)
-        }
-    }
-}
-
-// MARK: - Marquee Text
-
-struct MarqueeText: View {
-    let text: String
-    @State private var offset: CGFloat = 0
-    @State private var textWidth: CGFloat = 0
-    @State private var containerWidth: CGFloat = 0
-
-    var body: some View {
-        GeometryReader { geo in
-            let needsScroll = textWidth > geo.size.width
-            Text(text)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
-                .fixedSize()
-                .background(GeometryReader { textGeo in
-                    Color.clear.onAppear {
-                        textWidth = textGeo.size.width
-                        containerWidth = geo.size.width
-                    }
-                })
-                .offset(x: needsScroll ? offset : 0)
-                .onAppear {
-                    guard needsScroll else { return }
-                    startScrolling()
-                }
-                .onChange(of: text) {
-                    offset = 0
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                        if textWidth > containerWidth {
-                            startScrolling()
-                        }
-                    }
-                }
-        }
-        .clipped()
-        .frame(height: 14)
-    }
-
-    private func startScrolling() {
-        let distance = textWidth - containerWidth + 20
-        withAnimation(.linear(duration: Double(distance) / 30).delay(1).repeatForever(autoreverses: true)) {
-            offset = -distance
-        }
-    }
-}
-
-// MARK: - Mini Artwork
-
-struct MiniArtworkView: View {
-    let artwork: NSImage?
-
-    var body: some View {
-        Group {
-            if let artwork {
-                Image(nsImage: artwork)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 24, height: 24)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-            } else {
-                Image(systemName: "music.note")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-    }
-}
-
-// MARK: - Audio Bars Animation
-
-struct AudioBarsView: View {
-    let barCount = 4
-    let maxHeight: CGFloat = 14
-    let barWidth: CGFloat = 2.5
-    let spacing: CGFloat = 1.5
-
-    @State private var heights: [CGFloat] = []
-    @State private var animationTimer: Timer?
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: spacing) {
-            ForEach(0..<barCount, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(.white.opacity(0.75))
-                    .frame(width: barWidth, height: heights.indices.contains(i) ? heights[i] : 3)
-            }
-        }
-        .frame(height: maxHeight, alignment: .bottom)
-        .onAppear { startAnimating() }
-        .onDisappear {
-            animationTimer?.invalidate()
-            animationTimer = nil
-        }
-    }
-
-    private func startAnimating() {
-        heights = (0..<barCount).map { _ in CGFloat.random(in: 3...maxHeight) }
-
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                heights = (0..<barCount).map { _ in CGFloat.random(in: 3...maxHeight) }
-            }
-        }
-    }
-}
-
-// MARK: - Calendar Icon
-
-struct CalendarIconView: View {
-    private static let monthFormatter: DateFormatter = {
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "zh_CN")
-        fmt.dateFormat = "MMM"
-        return fmt
-    }()
-
-    private var monthString: String {
-        Self.monthFormatter.string(from: Date()).uppercased()
-    }
-
-    private var dayNumber: String {
-        "\(Calendar.current.component(.day, from: Date()))"
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(monthString)
-                .font(.system(size: 7, weight: .bold))
-                .foregroundStyle(.red.opacity(0.8))
-            Text(dayNumber)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .offset(y: -1)
-        }
-        .frame(width: 28, height: 24)
-    }
-}
-
-// MARK: - Horizontal Swipe Detector
-
-struct HorizontalSwipeDetector: NSViewRepresentable {
-    var onSwipeLeft: () -> Void
-    var onSwipeRight: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onSwipeLeft: onSwipeLeft, onSwipeRight: onSwipeRight)
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-            context.coordinator.handleScroll(event)
-            return event
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.onSwipeLeft = onSwipeLeft
-        context.coordinator.onSwipeRight = onSwipeRight
-    }
-
-    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
-        if let monitor = coordinator.monitor {
-            NSEvent.removeMonitor(monitor)
-            coordinator.monitor = nil
-        }
-    }
-
-    class Coordinator {
-        var onSwipeLeft: () -> Void
-        var onSwipeRight: () -> Void
-        var monitor: Any?
-        private var accX: CGFloat = 0
-        private var accY: CGFloat = 0
-        private var isTracking = false
-        private var hasFired = false
-        private let threshold: CGFloat = 20
-        private var lastSwipeTime: Date = .distantPast
-        private let cooldown: TimeInterval = 0.35
-
-        init(onSwipeLeft: @escaping () -> Void, onSwipeRight: @escaping () -> Void) {
-            self.onSwipeLeft = onSwipeLeft
-            self.onSwipeRight = onSwipeRight
-        }
-
-        func handleScroll(_ event: NSEvent) {
-            if event.phase == .began {
-                accX = 0
-                accY = 0
-                isTracking = true
-                hasFired = false
-            }
-
-            guard isTracking else { return }
-
-            accX += event.scrollingDeltaX
-            accY += event.scrollingDeltaY
-
-            if event.phase == .ended || event.phase == .cancelled {
-                defer {
-                    isTracking = false
-                    accX = 0
-                    accY = 0
-                }
-                guard !hasFired,
-                      abs(accX) > abs(accY),
-                      abs(accX) > threshold,
-                      Date().timeIntervalSince(lastSwipeTime) > cooldown else { return }
-                hasFired = true
-                lastSwipeTime = Date()
-                if accX < 0 {
-                    onSwipeLeft()
-                } else {
-                    onSwipeRight()
-                }
-            }
         }
     }
 }

@@ -7,9 +7,16 @@ import UniformTypeIdentifiers
 class FileDropStore {
     private static let storageKey = "notch.filedrop.items.v1"
 
+    enum DropZone {
+        case stage    // 暂存
+        case airdrop  // 投送
+    }
+
     var items: [FileDropItem] = []
     var isDragHovering = false
     var isDragSessionActive = false
+    var activeDropZone: DropZone = .stage
+    var lastDropZone: DropZone = .stage
 
     private var cleanupTimer: Timer?
 
@@ -102,6 +109,11 @@ class FileDropStore {
         guard FileManager.default.fileExists(atPath: item.storedURL.path) else { return }
         guard let service = NSSharingService(named: .sendViaAirDrop) else { return }
         service.perform(withItems: [item.storedURL])
+    }
+
+    func airdropFiles(from urls: [URL]) {
+        guard let service = NSSharingService(named: .sendViaAirDrop) else { return }
+        service.perform(withItems: urls as [Any])
     }
 
     func fileIcon(for item: FileDropItem) -> NSImage {

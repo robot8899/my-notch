@@ -109,14 +109,7 @@ struct MusicView: View {
     }
 
     private var noMusicView: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 28))
-                .foregroundStyle(.white.opacity(0.3))
-            Text("没有正在播放的音乐")
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.4))
-        }
+        EmptyStateView(icon: "music.note.list", message: "没有正在播放的音乐")
     }
 
     private func formatTime(_ seconds: Double) -> String {

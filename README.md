@@ -33,6 +33,10 @@
 
 ![紧凑状态页](docs/images/ui-05-status-compact.png)
 
+### 暂存与投送页
+
+![暂存与投送页](docs/images/ui-08-file-drop-send.png)
+
 ### 收起状态（新增）
 
 ![收起状态 1](docs/images/ui-06-collapsed-01.png)

@@ -121,6 +121,12 @@ class NotchWindowController: NSWindowController {
 
     private func handleDragUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
         if fileDropStore?.isDragSessionActive == true {
+            // 根据鼠标 x 位置判断区域（窗口坐标，左半=暂存，右半=投送）
+            if let panel = window {
+                let location = sender.draggingLocation
+                let midX = panel.frame.width / 2
+                fileDropStore?.activeDropZone = location.x < midX ? .stage : .airdrop
+            }
             return .copy
         }
 
@@ -136,21 +142,31 @@ class NotchWindowController: NSWindowController {
     private func handleDragExited() {
         fileDropStore?.isDragHovering = false
         fileDropStore?.isDragSessionActive = false
+        fileDropStore?.activeDropZone = .stage
         debugDrag("exited")
     }
 
     private func handlePerformDrop(_ sender: NSDraggingInfo) -> Bool {
-        defer { handleDragExited() }
-
         let urls = extractFileURLs(from: sender.draggingPasteboard)
         guard !urls.isEmpty else {
             debugDrag("drop rejected: no local file URLs")
+            handleDragExited()
             return false
         }
 
-        let acceptedCount = fileDropStore?.addFiles(from: urls) ?? 0
-        debugDrag("drop accepted incoming=\(urls.count) accepted=\(acceptedCount)")
-        guard acceptedCount > 0 else { return false }
+        let zone = fileDropStore?.activeDropZone ?? .stage
+        fileDropStore?.lastDropZone = zone
+
+        switch zone {
+        case .stage:
+            let acceptedCount = fileDropStore?.addFiles(from: urls) ?? 0
+            debugDrag("drop accepted (stage) incoming=\(urls.count) accepted=\(acceptedCount)")
+        case .airdrop:
+            fileDropStore?.airdropFiles(from: urls)
+            debugDrag("drop accepted (airdrop) count=\(urls.count)")
+        }
+
+        handleDragExited()
         return true
     }
 

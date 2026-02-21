@@ -48,15 +48,7 @@ struct ClipboardView: View {
     }
 
     private func emptyView(message: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 32))
-                .foregroundStyle(.white.opacity(0.3))
-            Text(message)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.4))
-        }
-        .frame(maxHeight: .infinity)
+        EmptyStateView(icon: "doc.on.clipboard", message: message, iconSize: 32)
     }
 
     private var bottomBar: some View {
@@ -67,18 +59,10 @@ struct ClipboardView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.45))
 
-                    TextField("", text: $searchQuery)
+                    TextField("搜索剪切板...", text: $searchQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
-                        .overlay(alignment: .leading) {
-                            if searchQuery.isEmpty {
-                                Text("搜索剪切板...")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.white.opacity(0.4))
-                                    .allowsHitTesting(false)
-                            }
-                        }
 
                     Button {
                         searchQuery = ""

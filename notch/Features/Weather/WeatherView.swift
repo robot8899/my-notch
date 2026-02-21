@@ -83,19 +83,11 @@ struct WeatherView: View {
                 }
 
                 HStack(spacing: 8) {
-                    TextField("", text: $searchQuery)
+                    TextField("搜索城市...", text: $searchQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
                         .foregroundStyle(.white)
                         .focused($isSearchFocused)
-                        .overlay(alignment: .leading) {
-                            if searchQuery.isEmpty {
-                                Text("搜索城市...")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.white.opacity(0.4))
-                                    .allowsHitTesting(false)
-                            }
-                        }
                         .onChange(of: searchQuery) {
                             if searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                                 clearSearch()

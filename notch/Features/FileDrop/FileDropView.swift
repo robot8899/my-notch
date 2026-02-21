@@ -1,5 +1,36 @@
 import SwiftUI
 
+struct FileDropContentView: View {
+    var store: FileDropStore
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if store.items.isEmpty {
+                EmptyStateView(icon: "tray", message: "拖拽文件到刘海区域即可暂存")
+            } else {
+                HStack {
+                    Spacer()
+                    Button("清空") {
+                        store.clearAll()
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 6)
+
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(store.items) { item in
+                            FileDropRowView(item: item, store: store)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct FileDropRowView: View {
     let item: FileDropItem
     var store: FileDropStore

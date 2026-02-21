@@ -75,19 +75,11 @@ struct TodoView: View {
 
             // Input field
             HStack(spacing: 8) {
-                TextField("", text: $newTitle)
+                TextField("添加待办事项...", text: $newTitle)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .foregroundStyle(.white)
                     .focused($isInputFocused)
-                    .overlay(alignment: .leading) {
-                        if newTitle.isEmpty {
-                            Text("添加待办事项...")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .allowsHitTesting(false)
-                        }
-                    }
                     .onSubmit {
                         store.add(title: newTitle)
                         newTitle = ""
